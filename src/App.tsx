@@ -1,5 +1,6 @@
 import { createTheme, ThemeProvider } from "@mui/material";
-import { Effect, Layer, pipe } from "effect";
+import { format } from "date-fns/fp";
+import { Effect, Layer, Logger, pipe } from "effect";
 import { useCallback, useEffect, useState } from "react";
 import { Extension, ExtensionContext, ExtensionType } from "./extension";
 import { ExtensionLive } from "./extension/live.ts";
@@ -7,7 +8,17 @@ import { OptionsDialog } from "./OptionsDialog.tsx";
 import { UILive } from "./ui/live.ts";
 
 const MainLive = ExtensionLive.pipe(Layer.provide(UILive));
-const extensionP = pipe(Extension, Effect.provide(MainLive), Effect.runPromise);
+const extensionP = pipe(
+  Extension,
+  Effect.provide(MainLive),
+  Effect.provide(
+    Logger.replace(
+      Logger.defaultLogger,
+      Logger.prettyLogger({ colors: "auto", mode: "browser", formatDate: format("MM/dd/yyyy hh:mm:ss.SSS aa") }),
+    ),
+  ),
+  Effect.runPromise,
+);
 
 const App = () => {
   const [optionsOpen, setOptionsOpen] = useState(false);

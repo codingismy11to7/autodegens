@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "compile:watch": "tsc -b -w",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint . --max-warnings 0",
@@ -15,6 +16,7 @@
     "@fontsource/roboto": "^5.1.0",
     "@mui/icons-material": "^6.3.0",
     "@mui/material": "^6.3.0",
+    "date-fns": "^4.1.0",
     "effect": "^3.12.0",
     "js-combinatorics": "^2.1.2",
     "react": "^18.3.1",

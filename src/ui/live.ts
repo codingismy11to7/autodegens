@@ -12,22 +12,13 @@ const selectOne = <E extends Element>(selector: string, from: Element | Document
     Effect.map(e => e as E),
   );
 
-const closeMessageModal = (withTitle: string) =>
-  pipe(
-    selectOne<HTMLDivElement>("#messageModal"),
-    Effect.filterOrFail(d => d.style.display === "block"),
-    Effect.tap(d =>
-      pipe(
-        Effect.sync(() => d.querySelector("h2")),
-        Effect.andThen(Effect.fromNullable),
-        Effect.andThen(d => d.innerText),
-        Effect.filterOrFail(t => t === withTitle),
-      ),
-    ),
-    Effect.andThen(d => selectOne<HTMLButtonElement>("button", d)),
-    Effect.andThen(b => b.click()),
-    doRetry,
-  );
+const closeMessageModal = pipe(
+  selectOne<HTMLDivElement>("#messageModal"),
+  Effect.filterOrFail(d => d.style.display === "block"),
+  Effect.andThen(d => selectOne<HTMLButtonElement>("button", d)),
+  Effect.andThen(b => b.click()),
+  doRetry,
+);
 
 const playOrSkipGameModal = (type: "play" | "skip") =>
   pipe(
@@ -57,9 +48,9 @@ const clickFirstLuckGameBox = pipe(
 const playLuckGame = pipe(
   selectEnabledLuckButton,
   Effect.andThen(b => b.click()),
-  Effect.andThen(closeMessageModal("Luck Game").pipe(Effect.ignore)),
+  Effect.andThen(closeMessageModal.pipe(Effect.ignore)),
   Effect.andThen(clickFirstLuckGameBox),
-  Effect.andThen(closeMessageModal("Luck Game Result")),
+  Effect.andThen(closeMessageModal),
   Effect.ignore,
 );
 
@@ -72,7 +63,7 @@ const skipGame = (id: string, desc: string) =>
     Effect.andThen(b => b.click()),
     Effect.andThen(skipGameModal),
     Effect.andThen(Effect.log(`skip ${desc}!`)),
-    Effect.andThen(closeMessageModal(`Skipped ${desc} Result`)),
+    Effect.andThen(closeMessageModal),
     Effect.ignore,
   );
 
@@ -149,7 +140,7 @@ const playMathGame = pipe(
       { discard: true },
     ),
   ),
-  Effect.andThen(closeMessageModal("Math Portal Puzzle Result").pipe(doRetry)),
+  Effect.andThen(closeMessageModal.pipe(doRetry)),
   Effect.ignore,
 );
 
