@@ -6,7 +6,7 @@ export class UI extends Context.Tag("UI")<
     playLuckGame: Effect.Effect<void>;
     skipSpeedGame: Effect.Effect<void>;
     skipMemoryGame: Effect.Effect<void>;
-    skipMathGame: Effect.Effect<void>;
+    playMathGame: Effect.Effect<void>;
   }>
 >() {}
 

@@ -1,5 +1,6 @@
-import { Effect, Layer, pipe, Schedule } from "effect";
+import { Chunk, Effect, Layer, Option, pipe, Schedule } from "effect";
 import { UI } from "./index.ts";
+import { findLargest } from "./math.ts";
 
 const doRetry = <A, E>(e: Effect.Effect<A, E>) =>
   e.pipe(Effect.retry(pipe(Schedule.intersect(Schedule.spaced("10 millis"), Schedule.recurs(10)))));
@@ -28,13 +29,16 @@ const closeMessageModal = (withTitle: string) =>
     doRetry,
   );
 
-const skipGameModal = pipe(
-  selectOne<HTMLDivElement>("#miniGameStartModal"),
-  Effect.filterOrFail(d => d.style.display === "block"),
-  Effect.andThen(m => selectOne<HTMLButtonElement>("button.skip-button", m)),
-  Effect.andThen(b => b.click()),
-  doRetry,
-);
+const playOrSkipGameModal = (type: "play" | "skip") =>
+  pipe(
+    selectOne<HTMLDivElement>("#miniGameStartModal"),
+    Effect.filterOrFail(d => d.style.display === "block"),
+    Effect.andThen(m => selectOne<HTMLButtonElement>(`button.${type}-button`, m)),
+    Effect.andThen(b => b.click()),
+    doRetry,
+  );
+
+const skipGameModal = playOrSkipGameModal("skip");
 
 const isAffordable = (e: Element) => Array.from(e.classList).some(className => className.startsWith("affordable"));
 
@@ -59,29 +63,102 @@ const playLuckGame = pipe(
   Effect.ignore,
 );
 
-const skipGame = (id: string, desc: string) => {
-  const selectEnabledGameButton = pipe(selectOne<HTMLButtonElement>(`#${id}`), Effect.filterOrFail(isAffordable));
+const selectEnabledGameButton = (id: string) =>
+  pipe(selectOne<HTMLButtonElement>(`#${id}`), Effect.filterOrFail(isAffordable));
 
-  return pipe(
-    selectEnabledGameButton,
+const skipGame = (id: string, desc: string) =>
+  pipe(
+    selectEnabledGameButton(id),
     Effect.andThen(b => b.click()),
     Effect.andThen(skipGameModal),
     Effect.andThen(Effect.log(`skip ${desc}!`)),
     Effect.andThen(closeMessageModal(`Skipped ${desc} Result`)),
     Effect.ignore,
   );
-};
 
 const skipSpeedGame = skipGame("speedGame", "Speed Game");
-const skipMathGame = skipGame("mathGame", "Math Game");
 const skipMemoryGame = skipGame("memoryGame", "Memory Game");
+
+type MathOption = Readonly<{ value: number; div: HTMLDivElement }>;
+type MathItems = Readonly<{
+  target: number;
+  options: Chunk.Chunk<MathOption>;
+}>;
+const emptyMathItems = (): MathItems => ({ target: 0, options: Chunk.empty() });
+const playMathGame = pipe(
+  selectEnabledGameButton("mathGame"),
+  Effect.andThen(b => b.click()),
+  Effect.andThen(playOrSkipGameModal("play")),
+  Effect.andThen(selectOne<HTMLDivElement>("#mathGameArea").pipe(doRetry)),
+  Effect.tap(Effect.log("play math game!")),
+  Effect.andThen(d => [...d.querySelectorAll("div")]),
+  Effect.andThen(items =>
+    items.reduce(
+      (acc, div) =>
+        div.style.position !== "absolute"
+          ? acc
+          : pipe(div.innerText, text =>
+              text.startsWith("Target:")
+                ? { ...acc, target: parseInt(text.replace("Target: ", ""), 10) }
+                : text.startsWith("Current:")
+                  ? acc
+                  : { ...acc, options: Chunk.append(acc.options, { value: parseInt(text, 10), div }) },
+            ),
+      emptyMathItems(),
+    ),
+  ),
+  Effect.andThen(({ options, target }) =>
+    Effect.all({
+      options: Effect.succeed(options),
+      answer: findLargest(
+        Chunk.map(options, o => o.value),
+        target,
+      ),
+    }),
+  ),
+  Effect.andThen(({ options, answer }) => {
+    const loop = (
+      currOpts = options,
+      remAnswer = answer,
+      acc: Chunk.Chunk<HTMLDivElement> = Chunk.empty(),
+    ): Chunk.Chunk<HTMLDivElement> => {
+      if (!remAnswer.length) {
+        return acc;
+      } else {
+        const thisOne = remAnswer[0];
+        const idx = Chunk.findFirstIndex(currOpts, o => o.value === thisOne);
+        if (Option.isNone(idx)) return acc;
+        else
+          return loop(
+            Chunk.remove(currOpts, idx.value),
+            remAnswer.slice(1),
+            Chunk.append(acc, Chunk.unsafeGet(currOpts, idx.value).div),
+          );
+      }
+    };
+
+    return loop();
+  }),
+  Effect.andThen(
+    Effect.forEach(
+      d =>
+        pipe(
+          Effect.sync(() => d.click()),
+          Effect.andThen(Effect.sleep("100 millis")),
+        ),
+      { discard: true },
+    ),
+  ),
+  Effect.andThen(closeMessageModal("Math Portal Puzzle Result").pipe(doRetry)),
+  Effect.ignore,
+);
 
 export const UILive = Layer.succeed(
   UI,
   UI.of({
     playLuckGame,
     skipSpeedGame,
-    skipMathGame,
+    playMathGame,
     skipMemoryGame,
   }),
 );

@@ -7,8 +7,8 @@ const startRunning = (ui: UIType) => {
     Effect.logTrace("running loop"),
     Effect.andThen(ui.playLuckGame),
     Effect.andThen(ui.skipSpeedGame),
-    Effect.andThen(ui.skipMathGame),
     Effect.andThen(ui.skipMemoryGame),
+    Effect.andThen(ui.playMathGame),
   );
 
   return pipe(loop, Effect.schedule(Schedule.spaced("25 millis")), Effect.asVoid, Effect.forkDaemon);
