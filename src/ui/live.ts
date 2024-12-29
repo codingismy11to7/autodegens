@@ -157,6 +157,16 @@ const anyOverlaysOpen = pipe(
   ),
 );
 
+const buyFirstUpgrade = pipe(
+  Effect.sync(() =>
+    Chunk.fromIterable(document.querySelectorAll<HTMLButtonElement>("div#upgradeList > div.upgrade > button")),
+  ),
+  Effect.andThen(Chunk.filter(isAffordable)),
+  Effect.andThen(Chunk.head),
+  Effect.andThen(b => b.click()),
+  Effect.ignore,
+);
+
 export const UILive = Layer.succeed(
   UI,
   UI.of({
@@ -165,5 +175,6 @@ export const UILive = Layer.succeed(
     playMathGame,
     skipMemoryGame,
     anyOverlaysOpen,
+    buyFirstUpgrade,
   }),
 );

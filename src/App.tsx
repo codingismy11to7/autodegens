@@ -43,7 +43,9 @@ const App = () => {
     settings.parentElement!.replaceChildren(...settings.parentElement!.childNodes, ourButton);
   }, [onButtonClick]);
 
-  const theme = createTheme({ palette: { mode: "dark" } });
+  const theme = createTheme({
+    palette: { mode: "dark", primary: { main: "#28a745" }, secondary: { main: "#c0392b" } },
+  });
 
   return (
     <ThemeProvider theme={theme}>
