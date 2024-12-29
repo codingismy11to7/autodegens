@@ -1,0 +1,17 @@
+{
+  "name": "AutoDegens",
+  "description": "Automator for Degens Idle",
+  "version": "1.0",
+  "manifest_version": 3,
+  "content_scripts": [
+    {
+      "js": ["autodegens-index.es.js"],
+      "matches": [
+        "https://www.degensidle.com/",
+        "https://www.degensidle.com/*",
+        "https://degensidle.com/",
+        "https://degensidle.com/*"
+      ]
+    }
+  ]
+}
