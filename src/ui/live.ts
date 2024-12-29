@@ -153,6 +153,19 @@ const playMathGame = pipe(
   Effect.ignore,
 );
 
+const anyOverlaysOpen = pipe(
+  Effect.sync(() => [...document.querySelectorAll<HTMLDivElement>("body > div")]),
+  Effect.andThen(topLevels =>
+    topLevels.some(
+      e =>
+        e.id !== "statusOverlay" &&
+        (e.id.endsWith("Overlay") || e.classList.contains("modal")) &&
+        e.style.display &&
+        e.style.display !== "none",
+    ),
+  ),
+);
+
 export const UILive = Layer.succeed(
   UI,
   UI.of({
@@ -160,5 +173,6 @@ export const UILive = Layer.succeed(
     skipSpeedGame,
     playMathGame,
     skipMemoryGame,
+    anyOverlaysOpen,
   }),
 );

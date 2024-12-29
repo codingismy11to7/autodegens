@@ -7,6 +7,7 @@ export class UI extends Context.Tag("UI")<
     skipSpeedGame: Effect.Effect<void>;
     skipMemoryGame: Effect.Effect<void>;
     playMathGame: Effect.Effect<void>;
+    anyOverlaysOpen: Effect.Effect<boolean>;
   }>
 >() {}
 
