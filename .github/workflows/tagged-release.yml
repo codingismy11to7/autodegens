@@ -1,0 +1,37 @@
+---
+name: "tagged-release"
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  gh_tagged_release:
+    runs-on: "ubuntu-latest"
+
+    steps:
+      - name: "Checkout source code"
+        uses: "actions/checkout@v3"
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - name: "🔧 setup node"
+        uses: actions/setup-node@v3
+        with:
+          cache: "npm"
+          node-version: 18
+          cache-dependency-path: "package-lock.json"
+
+      - run: "npm i"
+      - run: "npm run lint"
+      - run: "npm run release"
+
+      - uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          files: |
+            extension-upload/extension.zip
+        id: "automatic_releases"
