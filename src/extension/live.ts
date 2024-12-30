@@ -159,6 +159,7 @@ export const ExtensionLive = Layer.effect(
         patchConfig,
         updateConfig,
         buyFirstUpgrade: ui.buyFirstUpgrade,
+        toggleWarpTime: ui.toggleWarpTime,
       };
     }),
     Effect.tap(e =>

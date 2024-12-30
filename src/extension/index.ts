@@ -18,6 +18,7 @@ export class Extension extends Context.Tag("Extension")<
     patchConfig: (patch: (c: Config) => SomeConfigs) => Effect.Effect<void>;
     updateConfig: (c: SomeConfigs) => Effect.Effect<void>;
     buyFirstUpgrade: Effect.Effect<void>;
+    toggleWarpTime: Effect.Effect<void>;
   }>
 >() {}
 

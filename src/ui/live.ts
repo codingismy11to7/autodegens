@@ -72,9 +72,10 @@ const selectEnabledGameButton = (id: string) =>
 const skipGame = (id: string, desc: string) =>
   pipe(
     selectEnabledGameButton(id),
+    Effect.tap(Effect.log(`skip ${desc}!`)),
     Effect.andThen(b => b.click()),
     Effect.andThen(skipGameModal),
-    Effect.andThen(Effect.log(`skip ${desc}!`)),
+    Effect.andThen(Effect.log(`${desc} skipped`)),
     Effect.andThen(closeMessageModal()),
     Effect.ignore,
   );
@@ -190,7 +191,16 @@ const buyFirstUpgrade = pipe(
   Effect.andThen(Chunk.filter(isAffordable)),
   Effect.andThen(Chunk.head),
   Effect.andThen(b => b.click()),
-  Effect.ignore,
+  Effect.andThen(Effect.log("bought first upgrade")),
+  Effect.catchTag("NoSuchElementException", () => Effect.log("no upgrade to buy")),
+);
+
+const toggleWarpTime = pipe(
+  selectOne<HTMLButtonElement>("#warpTimeButton"),
+  Effect.filterOrFail(isAffordable),
+  Effect.andThen(b => b.click()),
+  Effect.andThen(Effect.log("clicked warp time button")),
+  Effect.catchTag("NoSuchElementException", () => Effect.log("time warp isn't ready?")),
 );
 
 const closeLoserDialogs = pipe(
@@ -208,6 +218,7 @@ export const UILive = Layer.succeed(
     skipMemoryGame,
     anyOverlaysOpen,
     buyFirstUpgrade,
+    toggleWarpTime,
     closeLoserDialogs,
   }),
 );
