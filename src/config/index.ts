@@ -5,6 +5,7 @@ const Config = Schema.Struct({
   autoStart: Schema.Boolean.pipe(Schema.optionalWith({ default: () => true, exact: true, nullable: true })),
   pollRate: DurationInputSchema.pipe(Schema.optionalWith({ default: () => "25 millis", exact: true, nullable: true })),
   buyFirstHotkey: Schema.Boolean.pipe(Schema.optionalWith({ default: () => true, exact: true, nullable: true })),
+  playGames: Schema.Boolean.pipe(Schema.optionalWith({ default: () => true, exact: true, nullable: true })),
 });
 
 export const parseConfig = Schema.decodeOption(Config);

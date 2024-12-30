@@ -4,20 +4,26 @@ import { ConfigType, DefaultConfig, parseConfig, SomeConfigs } from "../config";
 import { UI, UIType } from "../ui";
 import { BooleanListener, ConfigListener, Extension, Listener } from "./index.ts";
 
-const startRunning = (ui: UIType) => {
-  const loop = Effect.if(ui.anyOverlaysOpen, {
-    onTrue: () => Effect.void,
-    onFalse: () =>
-      pipe(
-        Effect.logTrace("running loop"),
-        Effect.andThen(ui.playLuckGame),
-        Effect.andThen(ui.skipSpeedGame),
-        Effect.andThen(ui.skipMemoryGame),
-        Effect.andThen(ui.playMathGame),
-      ),
-  });
+const startRunning = (ui: UIType) => (config: ConfigType) => {
+  const loop = Effect.if(
+    pipe(
+      ui.anyOverlaysOpen,
+      Effect.andThen(open => open || !config.playGames),
+    ),
+    {
+      onTrue: () => Effect.void,
+      onFalse: () =>
+        pipe(
+          Effect.logTrace("running loop"),
+          Effect.andThen(ui.playLuckGame),
+          Effect.andThen(ui.skipSpeedGame),
+          Effect.andThen(ui.skipMemoryGame),
+          Effect.andThen(ui.playMathGame),
+        ),
+    },
+  );
 
-  return pipe(loop, Effect.schedule(Schedule.spaced("25 millis")), Effect.asVoid, Effect.forkDaemon);
+  return pipe(loop, Effect.schedule(Schedule.spaced(config.pollRate)), Effect.asVoid, Effect.forkDaemon);
 };
 
 const localStorageKey = "___autodegens";
@@ -72,8 +78,14 @@ export const ExtensionLive = Layer.effect(
         running,
         Option.match({
           onSome: r => Effect.succeed(Option.some(r)),
-          onNone: () => pipe(startRunning(ui), Effect.asSome, Effect.tap(notifyEnabled(true))),
+          onNone: () =>
+            pipe(config.get, Effect.andThen(startRunning(ui)), Effect.asSome, Effect.tap(notifyEnabled(true))),
         }),
+      );
+      const restartIfRunning = pipe(
+        running,
+        Effect.andThen(Option.isSome),
+        Effect.andThen(running => (running ? pipe(disable, Effect.andThen(enable)) : Effect.void)),
       );
 
       const addListener =
@@ -96,14 +108,14 @@ export const ExtensionLive = Layer.effect(
         pipe(
           config,
           SynchronizedRef.getAndUpdateEffect(c => storeAndNotify({ ...c, ...patch(c) })),
+          Effect.andThen(restartIfRunning),
         );
 
       const updateConfig = (c: SomeConfigs) =>
         pipe(
-          pipe(
-            config,
-            SynchronizedRef.updateEffect(conf => storeAndNotify({ ...conf, ...c })),
-          ),
+          config,
+          SynchronizedRef.updateEffect(conf => storeAndNotify({ ...conf, ...c })),
+          Effect.andThen(restartIfRunning),
         );
 
       return {

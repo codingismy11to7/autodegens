@@ -92,6 +92,15 @@ export const OptionsDialog = ({ open, onClose }: Props) => {
               label="Buy first upgrade hot key"
             />
           </Tooltip>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={config.playGames}
+                onChange={(_, playGames) => void Effect.runPromise(extension.updateConfig({ playGames }))}
+              />
+            }
+            label="Play/skip games when available"
+          />
           <TextField
             size="small"
             label="Poll Rate"
