@@ -1,5 +1,5 @@
 ---
-name: "PR/master build"
+name: "PR/master"
 
 on:
   push:
