@@ -44,7 +44,10 @@ const skipGameModal = playOrSkipGameModal("skip");
 
 const isAffordable = (e: Element) => Array.from(e.classList).some(className => className.startsWith("affordable"));
 
-const selectEnabledLuckButton = pipe(selectOne<HTMLButtonElement>("#luckGame"), Effect.filterOrFail(isAffordable));
+const selectAffordable = <T extends Element>(selector: string) =>
+  pipe(selectOne<T>(selector), Effect.filterOrFail(isAffordable));
+
+const selectEnabledLuckButton = selectAffordable<HTMLButtonElement>("#luckGame");
 const luckGameBox = selectOne<HTMLDivElement>('body > div[style*="position: fixed"]');
 const clickFirstLuckGameBox = pipe(
   luckGameBox,
@@ -66,8 +69,7 @@ const playLuckGame = pipe(
   Effect.ignore,
 );
 
-const selectEnabledGameButton = (id: string) =>
-  pipe(selectOne<HTMLButtonElement>(`#${id}`), Effect.filterOrFail(isAffordable));
+const selectEnabledGameButton = (id: string) => selectAffordable<HTMLButtonElement>(`#${id}`);
 
 const skipGame = (id: string, desc: string) =>
   pipe(
@@ -196,8 +198,7 @@ const buyFirstUpgrade = pipe(
 );
 
 const toggleWarpTime = pipe(
-  selectOne<HTMLButtonElement>("#warpTimeButton"),
-  Effect.filterOrFail(isAffordable),
+  selectAffordable<HTMLButtonElement>("#warpTimeButton"),
   Effect.andThen(b => b.click()),
   Effect.andThen(Effect.log("clicked warp time button")),
   Effect.catchTag("NoSuchElementException", () => Effect.log("time warp isn't ready?")),
