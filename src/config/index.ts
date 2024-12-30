@@ -1,17 +1,21 @@
-import { Schema } from "effect";
-import { DurationInputSchema } from "./durationInputSchema.ts";
+import { LogLevel, Schema } from "effect";
+import { DurationInputSchema, LogLevelLiteralSchema } from "./inputSchemas.ts";
 
-const Config = Schema.Struct({
+const ConfigSchema = Schema.Struct({
   autoStart: Schema.Boolean.pipe(Schema.optionalWith({ default: () => true, exact: true, nullable: true })),
   pollRate: DurationInputSchema.pipe(Schema.optionalWith({ default: () => "25 millis", exact: true, nullable: true })),
   buyFirstHotkey: Schema.Boolean.pipe(Schema.optionalWith({ default: () => true, exact: true, nullable: true })),
   playGames: Schema.Boolean.pipe(Schema.optionalWith({ default: () => true, exact: true, nullable: true })),
+  logLevel: LogLevelLiteralSchema.pipe(
+    Schema.optionalWith({ default: () => LogLevel.Info._tag, exact: true, nullable: true }),
+  ),
+  closeLoserDialogs: Schema.Boolean.pipe(Schema.optionalWith({ default: () => true, exact: true, nullable: true })),
 });
 
-export const parseConfig = Schema.decodeOption(Config);
+export const parseConfig = Schema.decodeOption(ConfigSchema);
 
-export type ConfigType = typeof Config.Type;
+export type Config = typeof ConfigSchema.Type;
 
-export type SomeConfigs = Partial<ConfigType>;
+export type SomeConfigs = Partial<Config>;
 
-export const DefaultConfig = () => Config.make({});
+export const DefaultConfig = () => ConfigSchema.make({});

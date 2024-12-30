@@ -12,13 +12,24 @@ const selectOne = <E extends Element>(selector: string, from: Element | Document
     Effect.map(e => e as E),
   );
 
-const closeMessageModal = pipe(
-  selectOne<HTMLDivElement>("#messageModal"),
-  Effect.filterOrFail(d => d.style.display === "block"),
-  Effect.andThen(d => selectOne<HTMLButtonElement>("button", d)),
-  Effect.andThen(b => b.click()),
-  doRetry,
-);
+const closeMessageModal = (withTitle?: string) =>
+  pipe(
+    selectOne<HTMLDivElement>("#messageModal"),
+    Effect.filterOrFail(d => d.style.display === "block"),
+    Effect.tap(d =>
+      !withTitle
+        ? Effect.void
+        : pipe(
+            Effect.sync(() => d.querySelector("h2")),
+            Effect.andThen(Effect.fromNullable),
+            Effect.andThen(d => d.innerText),
+            Effect.filterOrFail(t => t === withTitle),
+          ),
+    ),
+    Effect.andThen(d => selectOne<HTMLButtonElement>("button", d)),
+    Effect.andThen(b => b.click()),
+    doRetry,
+  );
 
 const playOrSkipGameModal = (type: "play" | "skip") =>
   pipe(
@@ -48,9 +59,10 @@ const clickFirstLuckGameBox = pipe(
 const playLuckGame = pipe(
   selectEnabledLuckButton,
   Effect.andThen(b => b.click()),
-  Effect.andThen(closeMessageModal.pipe(Effect.ignore)),
+  Effect.andThen(closeMessageModal().pipe(Effect.ignore)),
   Effect.andThen(clickFirstLuckGameBox),
-  Effect.andThen(closeMessageModal),
+  Effect.andThen(Effect.log("played luck game")),
+  Effect.andThen(closeMessageModal()),
   Effect.ignore,
 );
 
@@ -63,7 +75,7 @@ const skipGame = (id: string, desc: string) =>
     Effect.andThen(b => b.click()),
     Effect.andThen(skipGameModal),
     Effect.andThen(Effect.log(`skip ${desc}!`)),
-    Effect.andThen(closeMessageModal),
+    Effect.andThen(closeMessageModal()),
     Effect.ignore,
   );
 
@@ -98,6 +110,18 @@ const playMathGame = pipe(
       emptyMathItems(),
     ),
   ),
+  Effect.tap(({ options, target }) =>
+    Effect.logInfo(
+      "target value is",
+      target,
+      "options are",
+      pipe(
+        options,
+        Chunk.map(o => o.value),
+        Chunk.toArray,
+      ),
+    ),
+  ),
   Effect.andThen(({ options, target }) =>
     Effect.all({
       options: Effect.succeed(options),
@@ -107,6 +131,7 @@ const playMathGame = pipe(
       ),
     }),
   ),
+  Effect.tap(({ answer }) => Effect.logInfo(`found answer with most selections (${answer.length})`, answer)),
   Effect.andThen(({ options, answer }) => {
     const loop = (
       currOpts = options,
@@ -140,7 +165,8 @@ const playMathGame = pipe(
       { discard: true },
     ),
   ),
-  Effect.andThen(closeMessageModal.pipe(doRetry)),
+  Effect.andThen(Effect.log("played math game")),
+  Effect.andThen(closeMessageModal().pipe(doRetry)),
   Effect.ignore,
 );
 
@@ -167,6 +193,12 @@ const buyFirstUpgrade = pipe(
   Effect.ignore,
 );
 
+const closeLoserDialogs = pipe(
+  closeMessageModal("You Lost"),
+  Effect.andThen(Effect.log("closed loser dialog")),
+  Effect.ignore,
+);
+
 export const UILive = Layer.succeed(
   UI,
   UI.of({
@@ -176,5 +208,6 @@ export const UILive = Layer.succeed(
     skipMemoryGame,
     anyOverlaysOpen,
     buyFirstUpgrade,
+    closeLoserDialogs,
   }),
 );

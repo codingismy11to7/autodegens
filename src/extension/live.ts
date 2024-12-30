@@ -1,33 +1,54 @@
-import { Effect, Fiber, HashMap, Layer, Option, pipe, Ref, Schedule, SynchronizedRef } from "effect";
+import { Effect, Fiber, HashMap, Layer, Logger, LogLevel, Option, pipe, Ref, Schedule, SynchronizedRef } from "effect";
 import { nanoid } from "nanoid";
-import { ConfigType, DefaultConfig, parseConfig, SomeConfigs } from "../config";
+import { runFork } from "../bootstrap.ts";
+import { Config, DefaultConfig, parseConfig, SomeConfigs } from "../config";
 import { UI, UIType } from "../ui";
 import { BooleanListener, ConfigListener, Extension, Listener } from "./index.ts";
 
-const startRunning = (ui: UIType) => (config: ConfigType) => {
-  const loop = Effect.if(
-    pipe(
-      ui.anyOverlaysOpen,
-      Effect.andThen(open => open || !config.playGames),
-    ),
-    {
-      onTrue: () => Effect.void,
-      onFalse: () =>
-        pipe(
-          Effect.logTrace("running loop"),
-          Effect.andThen(ui.playLuckGame),
-          Effect.andThen(ui.skipSpeedGame),
-          Effect.andThen(ui.skipMemoryGame),
-          Effect.andThen(ui.playMathGame),
-        ),
-    },
-  );
+const startRunning =
+  (ui: UIType) =>
+  (config: Config): Fiber.Fiber<void> => {
+    const closeDialogs = !config.closeLoserDialogs
+      ? Effect.void
+      : pipe(Effect.logDebug("closing loser dialog"), Effect.andThen(ui.closeLoserDialogs));
 
-  return pipe(loop, Effect.schedule(Schedule.spaced(config.pollRate)), Effect.asVoid, Effect.forkDaemon);
-};
+    const playGames = Effect.if(
+      pipe(
+        ui.anyOverlaysOpen,
+        Effect.andThen(open => open || !config.playGames),
+      ),
+      {
+        onTrue: () => Effect.void,
+        onFalse: () =>
+          pipe(
+            Effect.logDebug("playing games"),
+            Effect.andThen(ui.playLuckGame),
+            Effect.andThen(ui.skipSpeedGame),
+            Effect.andThen(ui.skipMemoryGame),
+            Effect.andThen(ui.playMathGame),
+          ),
+      },
+    );
+
+    const loop = pipe(
+      Effect.logDebug("running loop"),
+      Effect.andThen(closeDialogs),
+      Effect.andThen(playGames),
+      Effect.andThen(Effect.logDebug("done running loop")),
+      Effect.withLogSpan("poll loop"),
+    );
+
+    return pipe(
+      loop,
+      Effect.schedule(Schedule.spaced(config.pollRate)),
+      Effect.asVoid,
+      Logger.withMinimumLogLevel(LogLevel.fromLiteral(config.logLevel)),
+      runFork,
+    );
+  };
 
 const localStorageKey = "___autodegens";
-const loadConfig = (): ConfigType =>
+const loadConfig = (): Config =>
   pipe(
     localStorage.getItem(localStorageKey),
     Option.fromNullable,
@@ -36,9 +57,9 @@ const loadConfig = (): ConfigType =>
     Option.andThen(fillInDefaults),
     Option.getOrElse(DefaultConfig),
   );
-const storeConfig = (c: ConfigType) => Effect.sync(() => localStorage.setItem(localStorageKey, JSON.stringify(c)));
+const storeConfig = (c: Config) => Effect.sync(() => localStorage.setItem(localStorageKey, JSON.stringify(c)));
 
-const fillInDefaults = (c: SomeConfigs): ConfigType => ({ ...DefaultConfig(), ...c });
+const fillInDefaults = (c: SomeConfigs): Config => ({ ...DefaultConfig(), ...c });
 
 const callListenersWith = <T>(ref: Ref.Ref<HashMap.HashMap<string, Listener<T>>>, value: T, desc: string) =>
   pipe(
@@ -69,6 +90,7 @@ export const ExtensionLive = Layer.effect(
       const disable = pipe(
         SynchronizedRef.getAndSet(running, Option.none()),
         Effect.flatten,
+        Effect.tap(Effect.logInfo("stopping extension")),
         Effect.tap(Fiber.interrupt),
         Effect.andThen(notifyEnabled(false)),
         Effect.catchTag("NoSuchElementException", () => Effect.void),
@@ -79,13 +101,23 @@ export const ExtensionLive = Layer.effect(
         Option.match({
           onSome: r => Effect.succeed(Option.some(r)),
           onNone: () =>
-            pipe(config.get, Effect.andThen(startRunning(ui)), Effect.asSome, Effect.tap(notifyEnabled(true))),
+            pipe(
+              Effect.logInfo("starting extension"),
+              Effect.andThen(config.get),
+              Effect.map(startRunning(ui)),
+              Effect.asSome,
+              Effect.tap(notifyEnabled(true)),
+            ),
         }),
       );
       const restartIfRunning = pipe(
         running,
         Effect.andThen(Option.isSome),
-        Effect.andThen(running => (running ? pipe(disable, Effect.andThen(enable)) : Effect.void)),
+        Effect.andThen(running =>
+          !running
+            ? Effect.void
+            : pipe(Effect.logInfo("restarting due to config change"), Effect.andThen(disable), Effect.andThen(enable)),
+        ),
       );
 
       const addListener =
@@ -101,10 +133,10 @@ export const ExtensionLive = Layer.effect(
 
       const addConfigListener = addListener(configListeners);
 
-      const storeAndNotify = (c: ConfigType) =>
+      const storeAndNotify = (c: Config) =>
         pipe(storeConfig(c), Effect.andThen(callListenersWith(configListeners, c, "settings")), Effect.andThen(c));
 
-      const patchConfig = (patch: (c: ConfigType) => SomeConfigs) =>
+      const patchConfig = (patch: (c: Config) => SomeConfigs) =>
         pipe(
           config,
           SynchronizedRef.getAndUpdateEffect(c => storeAndNotify({ ...c, ...patch(c) })),
@@ -134,6 +166,7 @@ export const ExtensionLive = Layer.effect(
         e.config,
         Effect.andThen(c => c.autoStart),
         Effect.if({ onTrue: () => e.setEnabled(true), onFalse: () => Effect.void }),
+        Effect.andThen(Effect.logInfo("AutoDegens loaded")),
       ),
     ),
   ),
