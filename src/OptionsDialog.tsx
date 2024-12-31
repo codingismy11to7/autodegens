@@ -74,7 +74,7 @@ export const OptionsDialog = ({ open, onClose }: Props) => {
 
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle>AutoDegen Options</DialogTitle>
+      <DialogTitle>AutoDegens Options</DialogTitle>
       <IconButton
         aria-label="close"
         onClick={onClose}
