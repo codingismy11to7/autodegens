@@ -1,4 +1,4 @@
-import { Chunk, Effect, Layer, Option, pipe, Schedule } from "effect";
+import { Chunk, Effect, Layer, pipe, Schedule } from "effect";
 import { UI } from "./index.ts";
 import { findLargest } from "./math.ts";
 
@@ -125,44 +125,18 @@ const playMathGame = pipe(
       ),
     ),
   ),
-  Effect.andThen(({ options, target }) =>
-    Effect.all({
-      options: Effect.succeed(options),
-      answer: findLargest(
-        Chunk.map(options, o => o.value),
-        target,
-      ),
-    }),
+  Effect.andThen(({ options, target }) => findLargest(options, target)),
+  Effect.tap(answer =>
+    Effect.logInfo(
+      `found answer with most selections (${answer.length})`,
+      answer.map(a => a.value),
+    ),
   ),
-  Effect.tap(({ answer }) => Effect.logInfo(`found answer with most selections (${answer.length})`, answer)),
-  Effect.andThen(({ options, answer }) => {
-    const loop = (
-      currOpts = options,
-      remAnswer = answer,
-      acc: Chunk.Chunk<HTMLDivElement> = Chunk.empty(),
-    ): Chunk.Chunk<HTMLDivElement> => {
-      if (!remAnswer.length) {
-        return acc;
-      } else {
-        const thisOne = remAnswer[0];
-        const idx = Chunk.findFirstIndex(currOpts, o => o.value === thisOne);
-        if (Option.isNone(idx)) return acc;
-        else
-          return loop(
-            Chunk.remove(currOpts, idx.value),
-            remAnswer.slice(1),
-            Chunk.append(acc, Chunk.unsafeGet(currOpts, idx.value).div),
-          );
-      }
-    };
-
-    return loop();
-  }),
   Effect.andThen(
     Effect.forEach(
-      d =>
+      ({ div }) =>
         pipe(
-          Effect.sync(() => d.click()),
+          Effect.sync(() => div.click()),
           Effect.andThen(Effect.sleep("100 millis")),
         ),
       { discard: true },

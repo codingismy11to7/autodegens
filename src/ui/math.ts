@@ -1,39 +1,29 @@
-import { Chunk, Option, Order, pipe } from "effect";
+import { Chunk, Effect, Order, pipe, Stream } from "effect";
 import * as $C from "js-combinatorics";
 
-const findMaxSelections = (nums: Iterable<number>, target: number) =>
+const findMaxSelections = <T extends Readonly<{ value: number }>>(nums: Iterable<T>, target: number) =>
   pipe(
-    nums,
-    Chunk.fromIterable,
-    Chunk.sort(Order.number),
+    Chunk.fromIterable<T>(nums),
+    Chunk.sort(Order.make<T>((a, b) => (a.value < b.value ? -1 : 1))),
     Chunk.reduce({ total: 0, toTake: 0 }, (acc, num, idx) =>
-      acc.total + num > target ? acc : { total: acc.total + num, toTake: 1 + idx },
+      acc.total + num.value > target ? acc : { total: acc.total + num.value, toTake: 1 + idx },
     ),
     ({ toTake }) => toTake,
   );
 
-const combinations = (of: Iterable<number>, ofSize: number): ReadonlyArray<readonly number[]> => [
-  ...$C.Combination.of(of, ofSize),
-];
+const combinations =
+  <T extends Readonly<{ value: number }>>(of: Iterable<T>) =>
+  (ofSize: number) =>
+    Stream.fromIterable($C.Combination.of(of, ofSize) as Iterable<readonly T[]>);
 
-const sum = (nums: readonly number[]) => nums.reduce((acc, i) => acc + i, 0);
+const sum = <T extends Readonly<{ value: number }>>(nums: readonly T[]) => nums.reduce((acc, i) => acc + i.value, 0);
 
-export const findLargest = (from: Iterable<number>, addUpTo: number) =>
+export const findLargest = <T extends Readonly<{ value: number }>>(from: Iterable<T>, addUpTo: number) =>
   pipe(
     findMaxSelections(from, addUpTo),
-    largest => pipe(Chunk.range(2, largest), Chunk.reverse),
-    sizes => {
-      const loop = (rem = sizes, acc = Option.none<readonly number[]>()): Option.Option<readonly number[]> => {
-        if (Option.isSome(acc)) return acc;
-        else {
-          const size = Chunk.headNonEmpty(rem);
-          const rest = Chunk.tailNonEmpty(rem);
-          const combs = combinations(from, size);
-          const found = Option.fromNullable(combs.find(nums => sum(nums) === addUpTo));
-          if (Chunk.isNonEmpty(rest)) return loop(rest, found);
-          else return found;
-        }
-      };
-      return loop();
-    },
+    largest => Stream.fromChunk(pipe(Chunk.range(2, largest), Chunk.reverse)),
+    Stream.flatMap(combinations(from)),
+    Stream.filter(nums => sum(nums) === addUpTo),
+    Stream.runHead,
+    Effect.flatten,
   );
