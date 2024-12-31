@@ -15,7 +15,7 @@ const App = () => {
     void extensionP.then(setExtension);
   }, []);
 
-  const onButtonClick = useCallback(() => setOptionsOpen(o => !o), []);
+  const onAutoDegensClick = useCallback(() => setOptionsOpen(o => !o), []);
 
   useEffect(() => {
     if (!document.getElementById("autodegensButton")) {
@@ -26,10 +26,10 @@ const App = () => {
       const settingsStyle = window.getComputedStyle(settings);
       Array.from(settingsStyle).forEach(k => ourButton.style.setProperty(k, settingsStyle.getPropertyValue(k)));
       ourButton.style.backgroundColor = "purple";
-      ourButton.onclick = onButtonClick;
+      ourButton.onclick = onAutoDegensClick;
       settings.parentElement!.replaceChildren(...settings.parentElement!.childNodes, ourButton);
     }
-  }, [onButtonClick]);
+  }, [onAutoDegensClick]);
 
   const theme = createTheme({
     palette: { mode: "dark", primary: { main: "#28a745" }, secondary: { main: "#c0392b" } },
@@ -39,7 +39,11 @@ const App = () => {
     <ThemeProvider theme={theme}>
       {extension ? (
         <ExtensionContext.Provider value={extension}>
-          <OptionsDialog open={optionsOpen} onClose={() => setOptionsOpen(false)} />
+          <OptionsDialog
+            open={optionsOpen}
+            onClose={() => setOptionsOpen(false)}
+            requestOpenToggle={onAutoDegensClick}
+          />
         </ExtensionContext.Provider>
       ) : (
         <></>

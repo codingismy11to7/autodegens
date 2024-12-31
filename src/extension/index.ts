@@ -17,7 +17,7 @@ export class Extension extends Context.Tag("Extension")<
     addConfigListener: (listener: ConfigListener) => Effect.Effect<Cancellable>;
     patchConfig: (patch: (c: Config) => SomeConfigs) => Effect.Effect<void>;
     updateConfig: (c: SomeConfigs) => Effect.Effect<void>;
-    buyFirstUpgrade: Effect.Effect<void>;
+    buyFirstUpgradeOrCloseBattle: Effect.Effect<void>;
     toggleWarpTime: Effect.Effect<void>;
   }>
 >() {}

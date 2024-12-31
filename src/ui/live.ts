@@ -1,4 +1,5 @@
 import { Chunk, Effect, Layer, pipe, Schedule } from "effect";
+import { Config } from "../config";
 import { UI } from "./index.ts";
 import { findLargest } from "./math.ts";
 
@@ -168,8 +169,37 @@ const buyFirstUpgrade = pipe(
   Effect.andThen(Chunk.head),
   Effect.andThen(b => b.click()),
   Effect.andThen(Effect.log("bought first upgrade")),
+);
+const buyFirstUpgradeLogIfNone = pipe(
+  buyFirstUpgrade,
   Effect.catchTag("NoSuchElementException", () => Effect.log("no upgrade to buy")),
 );
+
+const forfeitFight = pipe(
+  selectOne<HTMLDivElement>("#fightingOverlay"),
+  Effect.filterOrFail(d => d.style.display !== "none"),
+  Effect.andThen(selectOne<HTMLButtonElement>("#forfeitButton")),
+  Effect.andThen(b => b.click()),
+  Effect.andThen(Effect.log("forfeited fight")),
+);
+
+const stopMeditation = pipe(
+  selectOne<HTMLDivElement>("#meditationOverlay"),
+  Effect.filterOrFail(d => d.style.display !== "none"),
+  Effect.andThen(selectOne<HTMLButtonElement>("#meditationStopButton")),
+  Effect.andThen(b => b.click()),
+  Effect.andThen(Effect.log("stopped meditation")),
+);
+
+const buyFirstUpgradeOrCloseBattle = (c: Config) =>
+  !c.buyFirstAlsoCancels
+    ? buyFirstUpgradeLogIfNone
+    : pipe(
+        forfeitFight,
+        Effect.catchTag("NoSuchElementException", () => stopMeditation),
+        Effect.catchTag("NoSuchElementException", () => buyFirstUpgrade),
+        Effect.catchTag("NoSuchElementException", () => Effect.log("no upgrade to buy or fights to cancel")),
+      );
 
 const toggleWarpTime = pipe(
   selectAffordable<HTMLButtonElement>("#warpTimeButton"),
@@ -192,7 +222,7 @@ export const UILive = Layer.succeed(
     playMathGame,
     skipMemoryGame,
     anyOverlaysOpen,
-    buyFirstUpgrade,
+    buyFirstUpgradeOrCloseBattle,
     toggleWarpTime,
     closeLoserDialogs,
   }),
