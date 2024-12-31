@@ -5,7 +5,9 @@ const ConfigSchema = Schema.Struct({
   autoStart: Schema.Boolean.pipe(Schema.optionalWith({ default: () => true, exact: true, nullable: true })),
   pollRate: DurationInputSchema.pipe(Schema.optionalWith({ default: () => "25 millis", exact: true, nullable: true })),
   buyFirstHotkey: Schema.Boolean.pipe(Schema.optionalWith({ default: () => true, exact: true, nullable: true })),
+  buyFirstAlsoCancels: Schema.Boolean.pipe(Schema.optionalWith({ default: () => true, exact: true, nullable: true })),
   warpTimeHotkey: Schema.Boolean.pipe(Schema.optionalWith({ default: () => true, exact: true, nullable: true })),
+  autoDegensHotkey: Schema.Boolean.pipe(Schema.optionalWith({ default: () => true, exact: true, nullable: true })),
   playGames: Schema.Boolean.pipe(Schema.optionalWith({ default: () => true, exact: true, nullable: true })),
   logLevel: LogLevelLiteralSchema.pipe(
     Schema.optionalWith({ default: () => LogLevel.Info._tag, exact: true, nullable: true }),
@@ -16,6 +18,10 @@ const ConfigSchema = Schema.Struct({
 export const parseConfig = Schema.decodeOption(ConfigSchema);
 
 export type Config = typeof ConfigSchema.Type;
+export const Config = {
+  logLevel: (c: Config) => LogLevel.fromLiteral(c.logLevel),
+  logLevelTag: (ll: LogLevel.LogLevel) => ll._tag,
+};
 
 export type SomeConfigs = Partial<Config>;
 

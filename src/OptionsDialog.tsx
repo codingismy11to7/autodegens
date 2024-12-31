@@ -19,9 +19,10 @@ import {
 import { Duration, Effect, flow, LogLevel, pipe } from "effect";
 import { useContext, useEffect, useRef, useState } from "react";
 import { runP, runS } from "./bootstrap.ts";
+import { Config } from "./config";
 import { ExtensionContext } from "./extension";
 
-type Props = Readonly<{ open: boolean; onClose: () => void }>;
+type Props = Readonly<{ open: boolean; onClose: () => void; requestOpenToggle: () => void }>;
 
 const useKeyboardHandler = (onKey: string, action: Effect.Effect<void>, enabled: boolean) => {
   const handler = useRef((evt: KeyboardEvent) => {
@@ -35,7 +36,7 @@ const useKeyboardHandler = (onKey: string, action: Effect.Effect<void>, enabled:
   }, [enabled]);
 };
 
-export const OptionsDialog = ({ open, onClose }: Props) => {
+export const OptionsDialog = ({ open, onClose, requestOpenToggle }: Props) => {
   const extension = useContext(ExtensionContext);
 
   const [enabled, setEnabled] = useState(runS(extension.enabled));
@@ -58,8 +59,9 @@ export const OptionsDialog = ({ open, onClose }: Props) => {
     };
   }, [extension]);
 
-  useKeyboardHandler("r", extension.buyFirstUpgrade, config.buyFirstHotkey);
+  useKeyboardHandler("r", extension.buyFirstUpgradeOrCloseBattle, config.buyFirstHotkey);
   useKeyboardHandler("w", extension.toggleWarpTime, config.warpTimeHotkey);
+  useKeyboardHandler("d", Effect.sync(requestOpenToggle), config.autoDegensHotkey);
 
   const [pollRate, setPollRate] = useState(`${config.pollRate}`);
   const onPollRateBlur = () =>
@@ -99,6 +101,17 @@ export const OptionsDialog = ({ open, onClose }: Props) => {
               label="Buy first upgrade hot key"
             />
           </Tooltip>
+          <FormControlLabel
+            sx={{ pl: 4 }}
+            control={
+              <Checkbox
+                disabled={!config.buyFirstHotkey}
+                checked={config.buyFirstAlsoCancels}
+                onChange={(_, buyFirstAlsoCancels) => updateConfig({ buyFirstAlsoCancels })}
+              />
+            }
+            label="Hot key also cancels battle/meditation"
+          />
           <Tooltip title="Press the W key to push the warp time button">
             <FormControlLabel
               control={
@@ -108,6 +121,17 @@ export const OptionsDialog = ({ open, onClose }: Props) => {
                 />
               }
               label="Warp Time hot key"
+            />
+          </Tooltip>
+          <Tooltip title="Press the D key to toggle this dialog">
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={config.autoDegensHotkey}
+                  onChange={(_, autoDegensHotkey) => updateConfig({ autoDegensHotkey })}
+                />
+              }
+              label="AutoDegens hot key"
             />
           </Tooltip>
           <FormControlLabel
@@ -139,7 +163,7 @@ export const OptionsDialog = ({ open, onClose }: Props) => {
               onChange={e => void runP(extension.updateConfig({ logLevel: e.target.value as LogLevel.Literal }))}
             >
               {LogLevel.allLevels.map(ll => (
-                <MenuItem key={ll._tag} value={ll._tag}>
+                <MenuItem key={Config.logLevelTag(ll)} value={Config.logLevelTag(ll)}>
                   {ll.label}
                 </MenuItem>
               ))}

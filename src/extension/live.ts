@@ -1,4 +1,4 @@
-import { Effect, Fiber, HashMap, Layer, Logger, LogLevel, Option, pipe, Ref, Schedule, SynchronizedRef } from "effect";
+import { Effect, Fiber, HashMap, Layer, Logger, Option, pipe, Ref, Schedule, SynchronizedRef } from "effect";
 import { nanoid } from "nanoid";
 import { runFork } from "../bootstrap.ts";
 import { Config, DefaultConfig, parseConfig, SomeConfigs } from "../config";
@@ -42,7 +42,7 @@ const startRunning =
       loop,
       Effect.schedule(Schedule.spaced(config.pollRate)),
       Effect.asVoid,
-      Logger.withMinimumLogLevel(LogLevel.fromLiteral(config.logLevel)),
+      Logger.withMinimumLogLevel(Config.logLevel(config)),
       runFork,
     );
   };
@@ -158,7 +158,7 @@ export const ExtensionLive = Layer.effect(
         addConfigListener,
         patchConfig,
         updateConfig,
-        buyFirstUpgrade: ui.buyFirstUpgrade,
+        buyFirstUpgradeOrCloseBattle: pipe(config.get, Effect.andThen(ui.buyFirstUpgradeOrCloseBattle)),
         toggleWarpTime: ui.toggleWarpTime,
       };
     }),
